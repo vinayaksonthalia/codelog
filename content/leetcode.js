@@ -1,17 +1,35 @@
 // CodeLog — LeetCode detector.
-// Strategy: watch the DOM for the "Accepted" submission result, then use
-// LeetCode's own GraphQL API (same-origin, your session) to fetch the exact
-// submitted code + problem metadata. No scraping walls, accepted-only by design.
+// Strategy: UI-independent. On problem pages we record the latest accepted
+// submission id as a baseline, then poll LeetCode's own GraphQL (same-origin,
+// your session) every few seconds; any NEW accepted submission id -> sync.
+// A MutationObserver on the result banner gives an instant trigger when it
+// works, but the poll guarantees detection even when the UI changes.
 "use strict";
 
 (() => {
-  let lastSyncedSubmission = null;
+  let baseline = null;        // latest accepted submission id seen at arm time
+  let lastSynced = null;
   let busy = false;
+  let armedSlug = null;
 
   const slugFromUrl = () => {
     const m = location.pathname.match(/\/problems\/([^/]+)/);
     return m ? m[1] : null;
   };
+
+  function toast(text, ok = true) {
+    try {
+      const t = document.createElement("div");
+      t.textContent = text;
+      t.style.cssText = `position:fixed;bottom:24px;right:24px;z-index:2147483647;
+        background:${ok ? "#1f6f36" : "#8a2f2b"};color:#fff;padding:10px 16px;
+        border-radius:10px;font:600 13px -apple-system,sans-serif;
+        box-shadow:0 4px 14px rgba(0,0,0,.4);opacity:0;transition:opacity .3s`;
+      document.body.appendChild(t);
+      requestAnimationFrame(() => (t.style.opacity = "1"));
+      setTimeout(() => { t.style.opacity = "0"; setTimeout(() => t.remove(), 400); }, 3500);
+    } catch { /* cosmetic only */ }
+  }
 
   async function gql(query, variables) {
     const res = await fetch("https://leetcode.com/graphql", {
@@ -23,58 +41,79 @@
     return (await res.json()).data;
   }
 
-  async function fetchQuestion(slug) {
-    const d = await gql(
-      `query q($s: String!) { question(titleSlug: $s) {
-         questionFrontendId title difficulty topicTags { name } } }`, { s: slug });
-    return d && d.question;
-  }
-
-  async function fetchLatestAcceptedSubmission(slug) {
+  async function latestAccepted(slug) {
     const d = await gql(
       `query s($s: String!) { questionSubmissionList(
-         offset: 0, limit: 5, questionSlug: $s) {
-         submissions { id statusDisplay lang { name verboseName } timestamp } } }`,
-      { s: slug });
+         offset: 0, limit: 8, questionSlug: $s) {
+         submissions { id statusDisplay lang { name verboseName } } } }`, { s: slug });
     const subs = d?.questionSubmissionList?.submissions || [];
     return subs.find((x) => x.statusDisplay === "Accepted") || null;
   }
 
-  async function fetchSubmissionCode(id) {
-    const d = await gql(
-      `query d($id: Int!) { submissionDetails(submissionId: $id) {
-         code lang { name verboseName } } }`, { id: Number(id) });
-    return d && d.submissionDetails;
+  async function arm() {
+    const slug = slugFromUrl();
+    if (!slug || slug === armedSlug) return;
+    armedSlug = slug;
+    baseline = null;
+    try {
+      const sub = await latestAccepted(slug);
+      baseline = sub ? sub.id : "none";
+      console.info(`[CodeLog:lc] armed on '${slug}' (baseline submission: ${baseline})`);
+    } catch (e) {
+      baseline = "none";
+      console.warn("[CodeLog:lc] arm failed (not logged in?)", e);
+    }
   }
 
-  async function onAccepted() {
-    if (busy) return;
+  async function sync(slug, sub) {
+    const [qd, dd] = await Promise.all([
+      gql(`query q($s: String!) { question(titleSlug: $s) {
+             questionFrontendId title difficulty topicTags { name } } }`, { s: slug }),
+      gql(`query d($id: Int!) { submissionDetails(submissionId: $id) {
+             code lang { name verboseName } } }`, { id: Number(sub.id) }),
+    ]);
+    const q = qd?.question, det = dd?.submissionDetails;
+    if (!q || !det || !det.code) throw new Error("could not fetch code/metadata");
+    const tags = (q.topicTags || []).map((t) => t.name);
+    const langName = det.lang?.verboseName || det.lang?.name || "";
+    const resp = await B.runtime.sendMessage({
+      type: "codelog:solved",
+      payload: {
+        platform: "leetcode",
+        id: q.questionFrontendId,
+        name: q.title,
+        url: `https://leetcode.com/problems/${slug}/`,
+        code: det.code,
+        lang: langName,
+        ext: clExtFor(det.lang?.name || langName),
+        tags,
+        topic: clPickTopic(tags),
+        difficulty: q.difficulty,
+      },
+    });
+    if (resp && resp.ok) {
+      toast(resp.skipped ? "🏴‍☠️ CodeLog: already synced" : `🏴‍☠️ CodeLog: synced ✓ ${q.title}`);
+      console.info("[CodeLog:lc] synced", q.questionFrontendId, q.title, resp);
+    } else {
+      toast(`CodeLog: sync failed — ${resp?.error || resp?.reason || "see console"}`, false);
+      console.warn("[CodeLog:lc] sync response", resp);
+    }
+  }
+
+  async function check() {
+    if (busy || document.hidden) return;
+    const slug = slugFromUrl();
+    if (!slug) return;
+    if (slug !== armedSlug) await arm();
+    if (baseline === null) return; // arming in flight
     busy = true;
     try {
-      const slug = slugFromUrl();
-      if (!slug) return;
-      const sub = await fetchLatestAcceptedSubmission(slug);
-      if (!sub || sub.id === lastSyncedSubmission) return;
-      const [q, det] = await Promise.all([fetchQuestion(slug), fetchSubmissionCode(sub.id)]);
-      if (!q || !det || !det.code) return;
-      lastSyncedSubmission = sub.id;
-      const tags = (q.topicTags || []).map((t) => t.name);
-      const langName = det.lang?.verboseName || det.lang?.name || sub.lang?.name || "";
-      B.runtime.sendMessage({
-        type: "codelog:solved",
-        payload: {
-          platform: "leetcode",
-          id: q.questionFrontendId,
-          name: q.title,
-          url: `https://leetcode.com/problems/${slug}/`,
-          code: det.code,
-          lang: langName,
-          ext: clExtFor(det.lang?.name || langName),
-          tags,
-          topic: clPickTopic(tags),
-          difficulty: q.difficulty,
-        },
-      });
+      const sub = await latestAccepted(slug);
+      if (sub && sub.id !== baseline && sub.id !== lastSynced) {
+        lastSynced = sub.id;
+        baseline = sub.id;
+        await sync(slug, sub);
+      }
     } catch (e) {
       console.warn("[CodeLog:lc]", e);
     } finally {
@@ -82,20 +121,19 @@
     }
   }
 
-  // Detect the result element. Primary: LeetCode's e2e locator. Fallback: any
-  // freshly-added node whose text is exactly "Accepted" (result banner).
+  // Instant trigger when the result banner appears; the poll is the guarantee.
   const observer = new MutationObserver((muts) => {
     for (const mut of muts) {
       for (const node of mut.addedNodes) {
         if (!(node instanceof HTMLElement)) continue;
-        const el =
-          node.matches?.('[data-e2e-locator="submission-result"]') ? node :
-          node.querySelector?.('[data-e2e-locator="submission-result"]');
-        const txt = (el?.textContent || node.textContent || "").trim();
-        if (el && /^Accepted$/.test(el.textContent.trim())) { onAccepted(); return; }
-        if (!el && /^Accepted$/.test(txt) && node.childElementCount <= 3) { onAccepted(); return; }
+        const txt = (node.textContent || "").trim();
+        if (txt.startsWith("Accepted")) { setTimeout(check, 1200); return; }
       }
     }
   });
   observer.observe(document.body, { childList: true, subtree: true });
+
+  arm();
+  setInterval(check, 7000); // the safety net — UI-independent
+  console.info("[CodeLog:lc] content script loaded");
 })();
