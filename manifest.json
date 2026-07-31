@@ -1,0 +1,77 @@
+{
+  "manifest_version": 3,
+  "name": "CodeLog",
+  "version": "0.1.0",
+  "description": "Auto-commit your ACCEPTED solutions from LeetCode, Codeforces & CSES to one GitHub repo \u2014 organized by topic and day. Your token, one repo, nothing else.",
+  "permissions": [
+    "storage",
+    "notifications"
+  ],
+  "host_permissions": [
+    "https://api.github.com/*",
+    "https://leetcode.com/*",
+    "https://codeforces.com/*",
+    "https://cses.fi/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "scripts": [
+      "background.js"
+    ]
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://leetcode.com/problems/*"
+      ],
+      "js": [
+        "common/compat.js",
+        "common/topics.js",
+        "content/leetcode.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://codeforces.com/*"
+      ],
+      "js": [
+        "common/compat.js",
+        "common/topics.js",
+        "content/codeforces.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://cses.fi/*"
+      ],
+      "js": [
+        "common/compat.js",
+        "common/topics.js",
+        "content/cses.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "options_ui": {
+    "page": "options/options.html",
+    "open_in_tab": true
+  },
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "SolveSync",
+    "default_icon": {
+      "128": "icon128.png"
+    }
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "codelog@vinayaksonthalia.github.io",
+      "strict_min_version": "121.0"
+    }
+  },
+  "icons": {
+    "128": "icon128.png"
+  }
+}

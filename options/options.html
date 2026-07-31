@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>CodeLog — Settings</title>
+<style>
+  :root{--bg:#0b0f14;--panel:#121821;--line:#1f2a37;--text:#e7edf3;--muted:#8b98a8;
+    --accent:#f2764b;--ok:#2ea043;--err:#e5534b}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,"Segoe UI",Roboto,sans-serif;line-height:1.5}
+  .wrap{max-width:640px;margin:0 auto;padding:34px 20px}
+  h1{font-size:22px;margin:0 0 4px}
+  .sub{color:var(--muted);font-size:13.5px;margin-bottom:22px}
+  label{display:block;font-size:13px;font-weight:600;margin:16px 0 6px}
+  input{width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--line);
+    background:var(--panel);color:var(--text);font-size:14px}
+  input:focus{outline:none;border-color:var(--accent)}
+  .hint{font-size:12px;color:var(--muted);margin-top:5px}
+  .row{display:flex;gap:12px}
+  .row > div{flex:1}
+  button{margin-top:22px;padding:10px 18px;border-radius:8px;border:none;cursor:pointer;
+    font-size:14px;font-weight:600;background:var(--accent);color:#fff}
+  button.ghost{background:transparent;border:1px solid var(--line);color:var(--muted)}
+  #status{margin-top:14px;font-size:13.5px;min-height:20px}
+  .ok{color:var(--ok)} .err{color:var(--err)}
+  .plats{display:flex;gap:18px;padding:10px 2px}
+  .plat{display:flex;align-items:center;gap:7px;font-weight:400;font-size:13.5px;margin:0;cursor:pointer}
+  .plat input{width:auto}
+  .steps{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    padding:14px 18px;font-size:13px;color:var(--muted);margin-top:26px}
+  .steps b{color:var(--text)}
+  code{background:#0e141c;padding:1px 5px;border-radius:4px;font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>⚙️ CodeLog Settings</h1>
+  <div class="sub">One fine-grained token, one repo. CodeLog never sees anything else — the token stays in your browser's local extension storage.</div>
+
+  <label>GitHub fine-grained token</label>
+  <input id="token" type="password" placeholder="github_pat_…" autocomplete="off" />
+  <div class="hint">Create it with access to ONLY your solutions repo → permission: <b>Contents: Read and write</b>. Steps below.</div>
+
+  <div class="row">
+    <div>
+      <label>GitHub username (owner)</label>
+      <input id="owner" placeholder="vinayaksonthalia" />
+    </div>
+    <div>
+      <label>Solutions repo</label>
+      <input id="repo" placeholder="dsa" />
+    </div>
+  </div>
+
+  <label>Branch <span style="color:var(--muted);font-weight:400">(optional — uses the repo's default if empty)</span></label>
+  <input id="branch" placeholder="main" />
+
+  <label>Platforms to sync <span style="color:var(--muted);font-weight:400">(pick any — you're not bound to all)</span></label>
+  <div class="plats">
+    <label class="plat"><input type="checkbox" id="p-leetcode" checked /> LeetCode</label>
+    <label class="plat"><input type="checkbox" id="p-codeforces" checked /> Codeforces</label>
+    <label class="plat"><input type="checkbox" id="p-cses" checked /> CSES</label>
+  </div>
+  <div class="hint">More platforms (GFG, AtCoder…) are a contribution away — each one is a single adapter file.</div>
+
+  <button id="save">Save</button>
+  <button id="test" class="ghost">Test connection</button>
+  <div id="status"></div>
+
+  <div class="steps">
+    <b>How to create the fine-grained token (once, ~2 min):</b><br/>
+    1. GitHub → Settings → Developer settings → Personal access tokens → <b>Fine-grained tokens</b> → Generate new token<br/>
+    2. Repository access → <b>Only select repositories</b> → pick your solutions repo (e.g. <code>dsa</code>)<br/>
+    3. Permissions → Repository permissions → <b>Contents → Read and write</b>. Nothing else.<br/>
+    4. Generate, copy the <code>github_pat_…</code> value, paste it above. Done — this token physically cannot touch any other repo.
+  </div>
+</div>
+<script src="../common/compat.js"></script>
+<script src="options.js"></script>
+</body>
+</html>

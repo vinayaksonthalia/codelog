@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+  body{width:300px;margin:0;background:#0b0f14;color:#e7edf3;
+    font-family:-apple-system,"Segoe UI",Roboto,sans-serif;font-size:13px}
+  .head{padding:14px 16px;border-bottom:1px solid #1f2a37;display:flex;justify-content:space-between;align-items:center}
+  .head b{font-size:15px}
+  .count{color:#f2b04b;font-weight:700}
+  .body{padding:12px 16px}
+  .item{padding:6px 0;border-bottom:1px solid #121821;color:#c6d0db}
+  .muted{color:#8b98a8}
+  a{color:#5aa9e6;text-decoration:none}
+  .foot{padding:10px 16px;border-top:1px solid #1f2a37;display:flex;justify-content:space-between}
+</style>
+</head>
+<body>
+  <div class="head"><b>🏴‍☠️ CodeLog</b><span><span class="count" id="count">0</span> synced</span></div>
+  <div class="body" id="list"><div class="muted">No syncs yet — go get an Accepted!</div></div>
+  <div class="foot">
+    <a href="#" id="opts">⚙️ Settings</a>
+    <a href="#" id="repo" target="_blank">📂 Repo</a>
+  </div>
+<script src="../common/compat.js"></script>
+<script src="popup.js"></script>
+</body>
+</html>
