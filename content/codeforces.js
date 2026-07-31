@@ -59,7 +59,7 @@
       if (!src || !src.source) { synced.delete(info.sid); return; }
       const tags = meta?.tags || [];
       const name = meta?.name || info.nameGuess.replace(/^[A-Z]\d*\s*-\s*/, "") || `${info.contestId}${info.index}`;
-      B.runtime.sendMessage({
+      const resp = await B.runtime.sendMessage({
         type: "codelog:solved",
         payload: {
           platform: "codeforces",
@@ -76,6 +76,13 @@
           difficulty: meta?.rating ?? null,
         },
       });
+      if (resp && resp.ok) {
+        clToast(resp.skipped ? "🏴‍☠️ CodeLog: already synced" : `🏴‍☠️ CodeLog: synced ✓ ${name}`);
+        console.info("[CodeLog:cf] synced", info.contestId + info.index, name, resp);
+      } else {
+        clToast(`CodeLog: sync failed — ${resp?.error || resp?.reason || "see console"}`, false);
+        console.warn("[CodeLog:cf] sync response", resp);
+      }
     } catch (e) {
       console.warn("[CodeLog:cf]", e);
       synced.delete(info.sid);
@@ -93,4 +100,6 @@
   const observer = new MutationObserver(() => scan());
   observer.observe(document.body, { childList: true, subtree: true, characterData: true });
   scan(); // also catch already-accepted rows on page load (e.g. /problemset/status/my)
+  setInterval(scan, 7000); // safety net for live verdict updates the observer misses
+  console.info("[CodeLog:cf] content script loaded");
 })();

@@ -72,7 +72,7 @@
       const section = map[task.id]?.section || "uncategorized";
       const name = map[task.id]?.name || task.name || `CSES ${task.id}`;
       const lang = extractLang();
-      B.runtime.sendMessage({
+      const resp = await B.runtime.sendMessage({
         type: "codelog:solved",
         payload: {
           platform: "cses",
@@ -87,6 +87,13 @@
           difficulty: null,
         },
       });
+      if (resp && resp.ok) {
+        clToast(resp.skipped ? "🏴‍☠️ CodeLog: already synced" : `🏴‍☠️ CodeLog: synced ✓ ${name}`);
+        console.info("[CodeLog:cses] synced", task.id, name, resp);
+      } else {
+        clToast(`CodeLog: sync failed — ${resp?.error || resp?.reason || "see console"}`, false);
+        console.warn("[CodeLog:cses] sync response", resp);
+      }
     } catch (e) {
       console.warn("[CodeLog:cses]", e);
       fired = false;
